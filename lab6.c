@@ -27,7 +27,7 @@ void addToHistory(char *command) {
 
 void printHistory() {
 }
-
+//
 
 void executeCommand(char *command) {
     // Bai 1
