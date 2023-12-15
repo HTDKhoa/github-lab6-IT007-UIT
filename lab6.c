@@ -27,7 +27,48 @@ void addToHistory(char *command) {
 
 void printHistory() {
 }
-//
+void execute_pipeline(char ***command_list, int num_commands) {
+    int pipes[num_commands - 1][2];
+
+    for (int i = 0; i < num_commands; ++i) {
+        if (i < num_commands - 1) {
+            if (pipe(pipes[i]) == -1) {
+                perror("pipe");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        pid_t pid = fork();
+
+        if (pid == 0) {
+            if (i > 0) {
+                dup2(pipes[i - 1][0], STDIN_FILENO);
+                close(pipes[i - 1][0]);
+                close(pipes[i - 1][1]);
+            }
+
+            if (i < num_commands - 1) {
+                dup2(pipes[i][1], STDOUT_FILENO);
+                close(pipes[i][0]);
+                close(pipes[i][1]);
+            }
+
+            execvp(command_list[i][0], command_list[i]);
+            perror("execvp");
+            exit(EXIT_FAILURE);
+        } else if (pid < 0) {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+
+        if (i > 0) {
+            close(pipes[i - 1][0]);
+            close(pipes[i - 1][1]);
+        }
+
+        wait(NULL);
+    }
+}
 
 void executeCommand(char *command) {
     // Bai 1
@@ -43,9 +84,23 @@ void executeCommand(char *command) {
         char *arguments[MAX_LINE / 2 + 1];
         char *token = strtok(command, " ");
         int i = 0;
+        int num_commands = 0;
+        char **command_list[MAX_LINE/2 + 1];
 
         while (token != NULL) {
-            arguments[i++] = token;
+            if (strcmp(token, "|") == 0) {
+                arguments[i] = NULL;
+                command_list[num_commands] = malloc(sizeof(char*) * (i + 1));
+                memcpy(command_list[num_commands], arguments, sizeof(char*) * i);
+                command_list[num_commands][i] = NULL;
+                ++num_commands;
+
+                i = 0;
+            }
+            else {
+                arguments[i] = token;
+                i++;
+            }
             token = strtok(NULL, " ");
         }
 
@@ -101,16 +156,30 @@ void executeCommand(char *command) {
             }
             arguments[i - 2] = NULL;
         }
-       
+       if (i > 0) {
+            arguments[i] = NULL;
+            command_list[num_commands] = malloc(sizeof(char*) * (i + 1));
+            memcpy(command_list[num_commands], arguments, sizeof(char*) * i);
+            command_list[num_commands][i] = NULL;
+            ++num_commands;
+        }  
+
+        if (num_commands > 1) {
+            addToHistory(command);
+            execute_pipeline(command_list, num_commands);
+        } 
+        else {
         // Thuc thi cau lenh
-        if (strcmp(command, "HF") == 0) {
+            if (strcmp(command, "HF") == 0) {
             printHistory(command);
-        } else {
+        } 
+            else {
             addToHistory(command);
             execvp(arguments[0], arguments);
             // execvp only returns if an error occurs
             perror("Execvp failed");
             exit(EXIT_FAILURE);
+            }
         }
     } 
     else {
