@@ -189,6 +189,21 @@ void executeCommand(char *command) {
     }
 }
 
+int isChildExecuting = 0;
+
+// Signal handler for SIGINT (Ctrl + C)
+void sigintHandler(int signum)
+{
+    // Check if a child process is currently executing
+    if (isChildExecuting)
+    {
+        // Terminate the child process
+        printf("\nTerminating the current command...\n");
+        fflush(stdout);
+    }
+}
+
+
 int main(void) {
     char command[MAX_LINE/ 2 + 1];
     int should_run = 1; /* flag de biet khi nao ket thuc chuong trinh */
