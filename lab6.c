@@ -190,18 +190,12 @@ void executeCommand(char *command) {
     }
 }
 
-int isChildExecuting = 0;
-
 // Signal handler for SIGINT (Ctrl + C)
 void sigintHandler(int signum)
 {
-    // Check if a child process is currently executing
-    if (isChildExecuting)
-    {
-        // Terminate the child process
-        printf("\nTerminating the current command...\n");
-        fflush(stdout);
-    }
+    printf("Nhan duoc input (Ctrl + C). Xuong dong cho command moi");
+    fflush(stdout);
+    exit(EXIT_SUCCESS);
 }
 
 
