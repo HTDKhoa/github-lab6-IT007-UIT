@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define MAX_LINE 100 /* The maximum length command */
 #define MAX_HISTORY 30 /* Maximum number of commands in history */
