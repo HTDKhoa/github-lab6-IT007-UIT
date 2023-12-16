@@ -190,12 +190,16 @@ void executeCommand(char *command) {
     }
 }
 
+int isChildExecuting = 0;
 // Signal handler for SIGINT (Ctrl + C)
 void sigintHandler(int signum)
 {
-    printf("Nhan duoc input (Ctrl + C). Xuong dong cho command moi");
-    fflush(stdout);
-    exit(EXIT_SUCCESS);
+    if (isChildExecuting)
+    {
+        printf("Nhan duoc input (Ctrl + C). Xuong dong cho command moi");
+        fflush(stdout);
+        exit(EXIT_SUCCESS);
+    }
 }
 
 
