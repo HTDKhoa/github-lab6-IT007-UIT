@@ -66,7 +66,7 @@ void execute_pipeline(char ***command_list, int num_commands) {
             close(pipes[i - 1][1]);
         }
 
-        wait(NULL);
+        if (pid > 0) wait(NULL);
     }
 }
 
