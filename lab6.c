@@ -208,6 +208,9 @@ int main(void) {
     char command[MAX_LINE/ 2 + 1];
     int should_run = 1; /* flag de biet khi nao ket thuc chuong trinh */
 
+    // Set up the signal handler for SIGINT
+    signal(SIGINT, sigintHandler);
+
     while (should_run) {
         printf("it007sh> ");
         fflush(stdout);
@@ -229,6 +232,51 @@ int main(void) {
         }
         addToHistory(command);
         executeCommand(command);
+        int arg_count = 0;
+        char *token = strtok(input, " \t\n");
+        while (token != NULL)
+        {
+            args[arg_count++] = token;
+            token = strtok(NULL, " \t\n");
+        }
+        args[arg_count] = NULL; // Null-terminate the argument list
+
+        if (arg_count > 0)
+        {
+            // Fork a new process
+            pid_t pid = fork();
+
+            if (pid < 0)
+            {
+                fprintf(stderr, "Fork failed\n");
+                exit(EXIT_FAILURE);
+            }
+            else if (pid == 0)
+            {
+                // This code is executed by the child process
+
+                // Set the flag to indicate that a child process is executing
+                isChildExecuting = 1;
+
+                // Check if the command is "echo abc"
+
+                // Execute the command
+                execvp(args[0], args);
+                perror("execvp");
+                exit(EXIT_FAILURE);
+            }
+            else
+            {
+                // This code is executed by the parent process
+
+                // Wait for the child process to complete
+                int status;
+                waitpid(pid, &status, 0);
+
+                // Reset the flag indicating that the child process has completed
+                isChildExecuting = 0;
+            }
+        }
     }
     return 0;
 }
