@@ -39,6 +39,8 @@ void printHistory() {
         printf("Da in ra toan bo lich su cua lenh\n");
     }
 }
+void execute_pipeline(char ***command_list, int num_commands) {
+    int pipes[num_commands - 1][2];
 
 void execute_pipeline(char ***command_list, int num_commands) {
     int pipes[num_commands - 1][2];
@@ -181,7 +183,6 @@ void executeCommand(char *command) {
             addToHistory(command);
             execute_pipeline(command_list, num_commands);
         } 
-
         else {
         // Thuc thi cau lenh
             if (strcmp(command, "HF") == 0) {
