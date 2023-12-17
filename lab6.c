@@ -27,6 +27,14 @@ void addToHistory(char *command) {
 }
 
 void printHistory() {
+    if (historyIndex > 0)
+    {
+        printf("Lich su cua lenh: %d: %s\n", historyIndex, history[--historyIndex]);
+    }
+    else
+    {
+        printf("Da in ra toan bo lich su cua lenh\n");
+    }
 }
 void execute_pipeline(char ***command_list, int num_commands) {
     int pipes[num_commands - 1][2];
