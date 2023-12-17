@@ -229,9 +229,15 @@ int main(void) {
         if (len > 0 && command[len - 1] == '\n') {
             command[len - 1] = '\0';
         }
-        addToHistory(command);
-        executeCommand(command);
-
+        if (strcmp(command, "HF") == 0)
+        {
+            printHistory();
+        }
+        else
+        {
+            addToHistory(command);
+            executeCommand(command);
+        }
     }
     return 0;
 }
