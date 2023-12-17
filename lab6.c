@@ -5,29 +5,83 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define MAX_LINE 100 /* The maximum length command */
 #define MAX_HISTORY 30 /* Maximum number of commands in history */
 
 char *history[MAX_HISTORY];
 int historyIndex = 0;
+int historyPrintIndex;
+int HistoryFlag = 0;
 
 void addToHistory(char *command) {
     if (historyIndex < MAX_HISTORY) {
-        history[historyIndex] = strdup(command);
-        historyIndex++;
-    } else {
-        free(history[0]);
-        for (int i = 0; i < MAX_HISTORY - 1; i++) {
-            history[i] = history[i + 1];
-        }
-        history[MAX_HISTORY - 1] = strdup(command);
+    history[historyIndex] = strdup(command);
+    historyIndex++;
+} else {
+    free(history[0]); // Free the oldest command
+    for (int i = 0; i < MAX_HISTORY - 1; i++) {
+        history[i] = history[i + 1];
     }
+        
+}
 }
 
 void printHistory() {
+    if (HistoryFlag == 0) historyPrintIndex = historyIndex;
+    if (historyPrintIndex > 0)
+    {
+        printf("Lich su cua lenh: %d: %s\n", historyPrintIndex + 1, history[--historyPrintIndex]);
+    }
+    else
+    {
+        printf("Da in ra toan bo lich su cua lenh\n");
+    }
 }
 
+void execute_pipeline(char ***command_list, int num_commands) {
+    int pipes[num_commands - 1][2];
+
+    for (int i = 0; i < num_commands; ++i) {
+        if (i < num_commands - 1) {
+            if (pipe(pipes[i]) == -1) {
+                perror("pipe");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        pid_t pid = fork();
+
+        if (pid == 0) {
+            if (i > 0) {
+                dup2(pipes[i - 1][0], STDIN_FILENO);
+                close(pipes[i - 1][0]);
+                close(pipes[i - 1][1]);
+            }
+
+            if (i < num_commands - 1) {
+                dup2(pipes[i][1], STDOUT_FILENO);
+                close(pipes[i][0]);
+                close(pipes[i][1]);
+            }
+
+            execvp(command_list[i][0], command_list[i]);
+            perror("execvp");
+            exit(EXIT_FAILURE);
+        } else if (pid < 0) {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+
+        if (i > 0) {
+            close(pipes[i - 1][0]);
+            close(pipes[i - 1][1]);
+        }
+
+        if (pid > 0) wait(NULL);
+    }
+}
 
 void executeCommand(char *command) {
     // Bai 1
@@ -43,9 +97,23 @@ void executeCommand(char *command) {
         char *arguments[MAX_LINE / 2 + 1];
         char *token = strtok(command, " ");
         int i = 0;
+        int num_commands = 0;
+        char **command_list[MAX_LINE/2 + 1];
 
         while (token != NULL) {
-            arguments[i++] = token;
+            if (strcmp(token, "|") == 0) {
+                arguments[i] = NULL;
+                command_list[num_commands] = malloc(sizeof(char*) * (i + 1));
+                memcpy(command_list[num_commands], arguments, sizeof(char*) * i);
+                command_list[num_commands][i] = NULL;
+                ++num_commands;
+
+                i = 0;
+            }
+            else {
+                arguments[i] = token;
+                i++;
+            }
             token = strtok(NULL, " ");
         }
 
@@ -101,16 +169,33 @@ void executeCommand(char *command) {
             }
             arguments[i - 2] = NULL;
         }
-       
+       if (i > 0) {
+            arguments[i] = NULL;
+            command_list[num_commands] = malloc(sizeof(char*) * (i + 1));
+            memcpy(command_list[num_commands], arguments, sizeof(char*) * i);
+            command_list[num_commands][i] = NULL;
+            ++num_commands;
+        }  
+
+        if (num_commands > 1) {
+            addToHistory(command);
+            execute_pipeline(command_list, num_commands);
+        } 
+
+        else {
         // Thuc thi cau lenh
-        if (strcmp(command, "HF") == 0) {
+            if (strcmp(command, "HF") == 0) {
             printHistory(command);
-        } else {
+            HistoryFlag = 1;
+        } 
+            else {
+            HistoryFlag = 0;
             addToHistory(command);
             execvp(arguments[0], arguments);
             // execvp only returns if an error occurs
             perror("Execvp failed");
             exit(EXIT_FAILURE);
+            }
         }
     } 
     else {
@@ -120,9 +205,25 @@ void executeCommand(char *command) {
     }
 }
 
+int isChildExecuting = 0;
+// Signal handler for SIGINT (Ctrl + C)
+void sigintHandler(int signum)
+{
+    if (isChildExecuting)
+    {
+        printf("Nhan duoc input (Ctrl + C). Xuong dong cho command moi");
+        fflush(stdout);
+        exit(EXIT_SUCCESS);
+    }
+}
+
+
 int main(void) {
     char command[MAX_LINE/ 2 + 1];
     int should_run = 1; /* flag de biet khi nao ket thuc chuong trinh */
+
+    // Set up the signal handler for SIGINT
+    signal(SIGINT, sigintHandler);
 
     while (should_run) {
         printf("it007sh> ");
@@ -133,18 +234,29 @@ int main(void) {
             break;
         }
 
-        // Check exit command
-        if (strcmp(command, "exit") == 0) {
-            break;
-        }
-
         // Xoa phan tu cuoi ("\n")
         size_t len = strlen(command);
         if (len > 0 && command[len - 1] == '\n') {
             command[len - 1] = '\0';
         }
-        addToHistory(command);
-        executeCommand(command);
+
+        // Check exit command
+        if (strcmp(command, "exit") == 0) {
+            break;
+        }
+
+        else if (strcmp(command, "HF") == 0)
+        {
+            printHistory();
+            HistoryFlag = 1;
+        }
+
+        else
+        {
+            HistoryFlag = 0;
+            addToHistory(command);
+            executeCommand(command);
+        }
     }
     return 0;
 }
